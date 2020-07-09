@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+#
+# DESCRIPTION
+# This tool monitors the network status from _inside_ the server.  There have
+# been occurances where a server is inaccessible from the outside appearing to
+# be locked up, requiring a reboot only to find that once the server has been
+# rebooted that the logs show that all services were running the whole time and
+# it only appears as if the network layer has gone missing (i.e. the Ethernet
+# cable has been unplugged). The problem is that a a reboot alone would not fix
+# a cable unplugged.  It would, however, resolve a network layer issue.  That's
+# that this attempts to do since there's no logging of the network layer itself.
+#
+# VERSION
+# Version: 0.99 RC3 (2020-07-08)
+#
+# Created by Hummdis (https://hummdis.com)
+#
+# LICENSE
+# This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+# International License. To view a copy of this license, visit
+# http://creativecommons.org/licenses/by-sa/4.0/.
+
+# Imports
+import sys
+import os
+import subprocess
+import logging
+import logging.handlers
+
+# Make sure we're running Python 3 and the shabang at the start doesn't simply
+# have the python3 binary symlinked to Python v2.
+if sys.hexversion < 0x03000000:
+   print("Python Version Error! Must be run by Python 3 or higher.")
+
+# Setup Logging
+# In the log rotate process testing showed for version 0.99, the tool ran for
+# 12 hours and generated a log 230KB in size. We'll set it to 10MB.
+LOG_FILENAME = '/var/log/network_monitor.log'
+
+logger = logging.getLogger('NetMonitor')
+logger.setLevel(logging.INFO)
+
+FORMAT = logging.Formatter("[%(asctime)s] - %(levelname)s - %(message)s")
+HANDLER = logging.handlers.RotatingFileHandler(LOG_FILENAME, "a", 10485760, 6)
+HANDLER.setFormatter(FORMAT)
+logger.addHandler(HANDLER)
+
+
+# Define the default external servers to PING. The idea here is that we'll make
+# sure there's connection inside the network, then confirm from 4 external,
+# highly available sources, that there's actually an Internet connection.
+ping_list = ['74.124.210.242',
+             '1.1.1.1',
+             '8.8.8.8',
+             '9.9.9.9',
+             '208.67.220.220']
+
+# Others
+real_infs = []
+
+
+# Check the operational state of the network adapters as reported by the OS.
+def opstate():
+    # Get a list of all the real network interfaces, except the loopback.
+    eth = subprocess.getoutput(
+        "find -L /sys/class/net/ -maxdepth 2 -type f -not -path ./subsystem/* -name operstate -print 2> /dev/null"
+)
+    eth = eth.split('\n')
+    for path in eth:
+        iface = path.split('/')[4]
+        if iface != 'lo':
+            logger.debug("Found real network interface: %s", iface)
+            real_infs.append(iface)
+
+    # Now, check the real interfaces and remove the ones that are 'down'.
+    for inf in real_infs:
+        check_path = "/sys/class/net/%s/operstate" % inf
+        if subprocess.getoutput(check_path) != 'down':
+            logger.info("Found network interface up: %s", inf)
+        else:
+            logger.warning("Found network interface DOWN: %s", inf)
+
+
+# Test general connectivity to the servers in the PING list.
+def ping_test():
+    # Make an attempt to send a PING to the IPs in the ping_list. Log results.
+    for ip in ping_list:
+        run_cmd = subprocess.Popen(
+            ["ping", "-c", "1", "-q", "-w", "5", ip],
+            stdout=subprocess.PIPE
+        )
+        logger.debug("Running PING on %s", ip)
+        logger.debug(run_cmd.communicate()[0])
+        if run_cmd.returncode == 0:
+            logger.info("Successful PING to %s", ip)
+        else:
+            logger.error("Failed PING to %s", ip)
+
+
+# Run functions if in a script.
+if __name__ == '__main__':
+    opstate()
+    ping_test()
+    sys.exit()
