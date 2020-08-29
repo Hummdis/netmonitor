@@ -6,12 +6,12 @@
 # be locked up, requiring a reboot only to find that once the server has been
 # rebooted that the logs show that all services were running the whole time and
 # it only appears as if the network layer has gone missing (i.e. the Ethernet
-# cable has been unplugged). The problem is that a a reboot alone would not fix
+# cable has been unplugged). The problem is that a reboot alone would not fix
 # a cable unplugged.  It would, however, resolve a network layer issue.  That's
-# that this attempts to do since there's no logging of the network layer itself.
+# what this attempts to do since there's no logging of the network layer itself.
 #
 # VERSION
-# Version: 0.99 RC3 (2020-07-08)
+# Version: 1.0 (2020-08-28)
 #
 # Created by Hummdis (https://hummdis.com)
 #
@@ -30,20 +30,21 @@ import logging.handlers
 # Make sure we're running Python 3 and the shabang at the start doesn't simply
 # have the python3 binary symlinked to Python v2.
 if sys.hexversion < 0x03000000:
-   print("Python Version Error! Must be run by Python 3 or higher.")
+    print("Python Version Error! Must be run by Python 3 or higher.")
+    sys.exit(1)
 
 # Setup Logging
 # In the log rotate process testing showed for version 0.99, the tool ran for
 # 12 hours and generated a log 230KB in size. We'll set it to 10MB.
-LOG_FILENAME = '/var/log/network_monitor.log'
+log_filename = '/var/log/network_monitor.log'
 
 logger = logging.getLogger('NetMonitor')
 logger.setLevel(logging.INFO)
 
-FORMAT = logging.Formatter("[%(asctime)s] - %(levelname)s - %(message)s")
-HANDLER = logging.handlers.RotatingFileHandler(LOG_FILENAME, "a", 10485760, 6)
-HANDLER.setFormatter(FORMAT)
-logger.addHandler(HANDLER)
+format = logging.Formatter("[%(asctime)s] - %(levelname)s - %(message)s")
+handler = logging.handlers.RotatingFileHandler(log_filename, "a", 10485760, 6)
+handler.setFormatter(format)
+logger.addHandler(handler)
 
 
 # Define the default external servers to PING. The idea here is that we'll make
@@ -64,7 +65,7 @@ def opstate():
     # Get a list of all the real network interfaces, except the loopback.
     eth = subprocess.getoutput(
         "find -L /sys/class/net/ -maxdepth 2 -type f -not -path ./subsystem/* -name operstate -print 2> /dev/null"
-)
+        )
     eth = eth.split('\n')
     for path in eth:
         iface = path.split('/')[4]
@@ -101,4 +102,4 @@ def ping_test():
 if __name__ == '__main__':
     opstate()
     ping_test()
-    sys.exit()
+    sys.exit(0)
