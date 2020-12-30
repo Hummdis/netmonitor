@@ -1,6 +1,6 @@
 # NetMonitor
 
-### Version 0.99 RC 3
+### Version 1.0.1
 
 =======
 
@@ -10,9 +10,9 @@ This tool monitors the network status from _inside_ the server.  There have been
 
 ## Usage
 
-Basically, clone the repo to the folder you want (i.e. `/root/netmonitor`), then setup a CRON job to run at the desired intervals.
+Basically, clone the repo to the folder you want (i.e. `/opt/netmonitor`), then setup a CRON job to run at the desired intervals.
 
-    * * * * * /root/netmonitor/netmonior
+    * * * * * /opt/netmonitor/netmonior
 
 ## Log
 
